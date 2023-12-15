@@ -1052,6 +1052,11 @@ def create_parser():
             'For ffmpeg, arguments can be passed to different positions using the same syntax as --postprocessor-args. '
             'You can use this option multiple times to give different arguments to different downloaders '
             '(Alias: --external-downloader-args)'))
+    downloader.add_option(
+        '--hls-test-n-fragments',
+        dest='hls_test_n_fragments', metavar='N', type='int', default=1,
+        help='Test N number of fragments before selecting format.'
+    )
 
     workarounds = optparse.OptionGroup(parser, 'Workarounds')
     workarounds.add_option(

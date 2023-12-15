@@ -74,6 +74,7 @@ class FileDownloader:
                         a webserver (experimental)
     progress_template:  See YoutubeDL.py
     retry_sleep_functions: See YoutubeDL.py
+    hls_test_n_fragments:  Test N number of fragments before selecting format (default: 1).
 
     Subclasses of this one must re-define the real_download method.
     """
