@@ -1030,7 +1030,7 @@ class VimeoOndemandIE(VimeoIE):  # XXX: Do not subclass from concrete IE
 
 class VimeoChannelIE(VimeoBaseInfoExtractor):
     IE_NAME = 'vimeo:channel'
-    _VALID_URL = r'https://vimeo\.com/channels/(?P<id>[^/?#]+)/?(?:$|[?#])'
+    _VALID_URL = r'https://vimeo\.com/channels/(?P<id>[^/?#]+)(/?videos/search:(?P<search>[^/?#]+))?(/sort:(?P<sort>[^/?#]+))?'
     _MORE_PAGES_INDICATOR = r'<a.+?rel="next"'
     _TITLE = None
     _TITLE_RE = r'<link rel="alternate"[^>]+?title="(.*?)"'
@@ -1045,7 +1045,8 @@ class VimeoChannelIE(VimeoBaseInfoExtractor):
     _BASE_URL_TEMPL = 'https://vimeo.com/channels/%s'
 
     def _page_url(self, base_url, pagenum):
-        return '%s/videos/page:%d/' % (base_url, pagenum)
+        channel, *params = base_url.split('/videos/')
+        return '%s/videos/page:%d/%s' % (channel, pagenum, params[0] if params else '')
 
     def _extract_list_title(self, webpage):
         return self._TITLE or self._html_search_regex(
@@ -1086,8 +1087,8 @@ class VimeoChannelIE(VimeoBaseInfoExtractor):
         return self.playlist_result(title_and_entries, list_id, list_title)
 
     def _real_extract(self, url):
-        channel_id = self._match_id(url)
-        return self._extract_videos(channel_id, self._BASE_URL_TEMPL % channel_id)
+        channel_search_id = url.split('/channels/')[1]
+        return self._extract_videos(channel_search_id, url)
 
 
 class VimeoUserIE(VimeoChannelIE):  # XXX: Do not subclass from concrete IE
