@@ -1030,7 +1030,7 @@ class VimeoOndemandIE(VimeoIE):  # XXX: Do not subclass from concrete IE
 
 class VimeoChannelIE(VimeoBaseInfoExtractor):
     IE_NAME = 'vimeo:channel'
-    _VALID_URL = r'https://vimeo\.com/channels/(?P<id>[^/?#]+)/?(?:$|[?#])'
+    _VALID_URL = r'https://vimeo\.com/channels/(?P<id>[^/?#]+)(/?videos/search:(?P<search_query>[^/?#]+))?(/sort:(?P<sort>[^/?#]+))?'
     _MORE_PAGES_INDICATOR = r'<a.+?rel="next"'
     _TITLE = None
     _TITLE_RE = r'<link rel="alternate"[^>]+?title="(.*?)"'
@@ -1041,11 +1041,21 @@ class VimeoChannelIE(VimeoBaseInfoExtractor):
             'title': 'Vimeo Tributes',
         },
         'playlist_mincount': 22,
+    }, {
+        'url': 'https://vimeo.com/channels/chicopeegovernment/videos/search:committee/sort:preset',
+        'info_dict': {
+            'id': 'chicopeegovernment/videos/search:committee/sort:preset',
+            'title': 'Chicopee Government Meetings'
+        }
+    }, {
+        'url': 'https://vimeo.com/channels/1096103/videos/search:committee',
+        'only_matching': True,
     }]
     _BASE_URL_TEMPL = 'https://vimeo.com/channels/%s'
 
     def _page_url(self, base_url, pagenum):
-        return '%s/videos/page:%d/' % (base_url, pagenum)
+        channel, *params = re.split('/videos/?', base_url)
+        return '%s/videos/page:%d/%s' % (channel, pagenum, params[0] if params else '')
 
     def _extract_list_title(self, webpage):
         return self._TITLE or self._html_search_regex(
@@ -1087,12 +1097,12 @@ class VimeoChannelIE(VimeoBaseInfoExtractor):
 
     def _real_extract(self, url):
         channel_id = self._match_id(url)
-        return self._extract_videos(channel_id, self._BASE_URL_TEMPL % channel_id)
+        return self._extract_videos(channel_id, url)
 
 
 class VimeoUserIE(VimeoChannelIE):  # XXX: Do not subclass from concrete IE
     IE_NAME = 'vimeo:user'
-    _VALID_URL = r'https://vimeo\.com/(?!(?:[0-9]+|watchlater)(?:$|[?#/]))(?P<id>[^/]+)(?:/videos)?/?(?:$|[?#])'
+    _VALID_URL = r'https://vimeo\.com/(?!(?:[0-9]+|watchlater)(?:$|[?#/]))(?P<id>[^/]+)(?:/videos)?(?:/search:(?P<search_query>[^/?#]+))?/?(?:$|[?#])'
     _TITLE_RE = r'<a[^>]+?class="user">([^<>]+?)</a>'
     _TESTS = [{
         'url': 'https://vimeo.com/nkistudio/videos',
@@ -1104,6 +1114,9 @@ class VimeoUserIE(VimeoChannelIE):  # XXX: Do not subclass from concrete IE
     }, {
         'url': 'https://vimeo.com/nkistudio/',
         'only_matching': True,
+    }, {
+        'url': 'https://vimeo.com/chicopeetv/videos/search:committee',
+        'only_matching': True
     }]
     _BASE_URL_TEMPL = 'https://vimeo.com/%s'
 
