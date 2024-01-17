@@ -266,9 +266,9 @@ class HlsFD(FragmentFD):
                     discontinuity_count += 1
                 i += 1
 
-        # We only download the first fragment during the test
+        # Test with the first N fragments set by --hls-test-n-fragments. Defaults to the first.
         if self.params.get('test', False):
-            fragments = [fragments[0] if fragments else None]
+            fragments = fragments[:self.params.get('hls_test_n_fragments', 1)] if fragments else [None]
 
         if real_downloader:
             info_dict['fragments'] = fragments
