@@ -2193,6 +2193,7 @@ from .viewlift import (
 )
 from .viidea import ViideaIE
 from .vimeo import (
+    VimeoSearchIE,
     VimeoIE,
     VimeoAlbumIE,
     VimeoChannelIE,
