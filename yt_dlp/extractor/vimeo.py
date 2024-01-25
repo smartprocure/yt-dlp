@@ -299,32 +299,32 @@ class VimeoIE(VimeoBaseInfoExtractor):
 
     # _VALID_URL matches Vimeo URLs
     _VALID_URL = r'''(?x)
-                     https?://
-                         (?:
-                             (?:
-                                 www|
-                                 player
-                             )
-                             \.
-                         )?
-                         vimeo\.com/
-                         (?:
-                             (?P<u>user)|
-                             (?!(?:channels|album|showcase)/[^/?#]+/?(?:$|[?#])|[^/]+/review/|ondemand/)
-                             (?:.*?/)??
-                             (?P<q>
-                                 (?:
-                                     play_redirect_hls|
-                                     moogaloop\.swf)\?clip_id=
-                             )?
-                             (?:videos?/)?
-                         )
-                         (?P<id>[0-9]+)
-                         (?(u)
-                             /(?!videos|likes)[^/?#]+/?|
-                             (?(q)|/(?P<unlisted_hash>[\da-f]{10}))?
-                         )
-                         (?:(?(q)[&]|(?(u)|/?)[?]).*?)?(?:[#].*)?$
+https?://
+    (?:
+        (?:
+            www|
+            player
+        )
+        \.
+    )?
+    vimeo\.com/
+    (?:
+        (?P<u>user)|
+        (?!(?:channels|album|showcase)/[^/?#]+/?(?:$|[?#])|[^/]+/review/|ondemand/)
+        (?:.*?/)??
+        (?P<q>
+            (?:
+                play_redirect_hls|
+                moogaloop\.swf)\?clip_id=
+        )?
+        (?:videos?/)?
+    )
+    (?P<id>[0-9]+)
+    (?(u)
+        /(?!videos|likes|folder)[^/?#]+/?|
+        (?(q)|/(?P<unlisted_hash>[\da-f]{10}))?
+    )
+    (?:(?(q)[&]|(?(u)|/?)[?]).*?)?(?:[#].*)?$
                  '''
     IE_NAME = 'vimeo'
     _EMBED_REGEX = [
@@ -1458,3 +1458,79 @@ class VimeoProIE(VimeoBaseInfoExtractor):
 
         return self.url_result(vimeo_url, VimeoIE, video_id, url_transparent=True,
                                description=description)
+
+
+class VimeoSearchIE(VimeoBaseInfoExtractor):
+    IE_NAME = 'vimeo:search'
+    _PAGE_SIZE = 18
+    _VALID_URL = r'https?://(?:www\.)?vimeo\.com/search(?:/(?P<filter_type>ondemand|people|channel|group))?\?([^#]+&)?q=(?P<search_query>[^&]+)(?:[&#]|$)'
+
+    def _process_search_result(self, record: dict):
+        if (record_type := record['type']) == 'clip':
+            clip = record['clip']
+            link = clip.get('link')
+            uri = clip.get('uri')
+            video_id = self._search_regex(r'/videos/(\d+)', uri, 'video_id', default=None) if uri else None
+            return self.url_result(link, VimeoIE.ie_key(), video_id)
+        elif record_type == 'channel':
+            ...
+        else:
+            raise Exception(f"\"{record_type}\" not implemented for this extractor...")
+
+    def _real_extract(self, url):
+        parsed_query = parse_qs(url)
+        if not (search_query := parsed_query.get('q')[0]):
+            raise Exception("No search query found for vimeo search URL.")
+
+        if not (vimeo_config := self._extract_vimeo_config(
+            self._download_webpage(url, (display_id := f"{search_query=}")),
+            display_id
+        )):
+            raise Exception("Vimeo config not found in initial download!")
+
+        if not (api := vimeo_config.get('api')):
+            raise Exception("Vimeo config has unexpected format!")
+
+        if not (jwt := api.get('jwt')):
+            raise Exception("Authorization token not found.")
+
+        if not (state := api.get('initial_json')):
+            raise Exception("No data found in vimeo config!")
+
+        def process_data(data):
+            self.to_screen({
+                'total': data['total'],
+                'paramaters': data['parameters'],
+            })
+            if not (pagination := data.get('paging')):
+                return      # no paging
+            if not (next_url := pagination.get('next')):
+                return      # no next page
+
+            # TODO: Make the following cleaner.
+            parsed_next = {k: v[0] for k, v in compat_urlparse.parse_qs(next_url.strip('?')).items()}
+            params = data['parameters']
+            filters = params.pop('filters')
+            params.update(parsed_next)
+            params.update({f'filter_{k}': ','.join(v['values']) for k, v in filters.items()})
+
+            return self._download_json(
+                f'https://api.vimeo.com/search?{compat_urlparse.urlencode(params)}',
+                search_query,
+                headers={
+                    'Referer': 'https://vimeo.com',
+                    'Authorization': f"jwt {jwt}"
+                }
+            )
+
+        def paginate(state):
+            yield from map(self._process_search_result, state['data'])
+            while state := process_data(state):
+                yield from map(self._process_search_result, state['data'])
+
+        return self.playlist_result(
+            paginate(state),
+            display_id,
+            search_query,
+            search_query
+        )
