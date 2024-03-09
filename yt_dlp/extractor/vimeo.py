@@ -1109,7 +1109,6 @@ class VimeoChannelIE(VimeoBaseInfoExtractor):
 class VimeoUserIE(VimeoChannelIE):  # XXX: Do not subclass from concrete IE
     IE_NAME = 'vimeo:user'
     _VALID_URL = r'https://vimeo\.com/(?!(?:[0-9]+|watchlater)(?:$|[?#/]))(?P<id>[^/]+)(?:/videos)?(?:/search:(?P<search_query>[^/?#]+))?/?(?:/sort:(?P<sort_field>[^/?#]+))?/?(?:$|[?#])'
-
     _TITLE_RE = r'<a[^>]+?class="user">([^<>]+?)</a>'
     _TESTS = [{
         'url': 'https://vimeo.com/nkistudio/videos',
